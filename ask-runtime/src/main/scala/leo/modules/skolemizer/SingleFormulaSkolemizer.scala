@@ -15,7 +15,8 @@ final class SingleFormulaSkolemizer(skolemizationSymbol: String, skolemizeAll: B
     s"${skolemizationSymbol}_$nextSkolemIndexFormatted"
   }
 
-  private[this] var introducedSkolemSymbols: Seq[String] = Seq.empty
+  /* Map: Variable -> skolem symbol */
+  private[this] var introducedSkolemSymbols: Map[String,String] = Map.empty
   private[this] var typeDeclarationsOfIntroducedSkolemSymbols: Seq[TPTP.AnnotatedFormula] = Seq.empty
 
   def apply(problem: TPTP.Problem): TPTP.Problem = {
@@ -45,27 +46,42 @@ final class SingleFormulaSkolemizer(skolemizationSymbol: String, skolemizeAll: B
               // Entry #2 [status(esa),new_symbols(skolem, [<introduced symbol>]), skolemized(<var>)]
               TPTP.GeneralTerm(
                 Seq.empty,
-                Some(
+                Some( // Tuple begin
                   Seq(
+                    // Entry 2.1: status
                     TPTP.GeneralTerm(
                       Seq(
                         TPTP.MetaFunctionData("status", Seq(TPTP.GeneralTerm(Seq(TPTP.MetaFunctionData("esa", Seq.empty)),None)))
                       ),
                       None
                     ),
+                    // Entry 2.2: new_symbols
                     TPTP.GeneralTerm(
                       Seq(
                         TPTP.MetaFunctionData("new_symbols", Seq(
                           TPTP.GeneralTerm(Seq(TPTP.MetaFunctionData("skolem", Seq.empty)),None),
                           TPTP.GeneralTerm(Seq.empty,Some(
-                            introducedSkolemSymbols.map(sym => TPTP.GeneralTerm(Seq(TPTP.MetaFunctionData(sym, Seq.empty)), None))
+                            introducedSkolemSymbols.values.toSeq.map(sym => TPTP.GeneralTerm(Seq(TPTP.MetaFunctionData(sym, Seq.empty)), None))
                           ))
+                        ))
+                      ),
+                      None
+                    ),
+                    // Entry 2.3: skolemized(...)
+                    TPTP.GeneralTerm(
+                      Seq(
+                        TPTP.MetaFunctionData("skolemized", Seq(
+                          if (introducedSkolemSymbols.keySet.size == 1) {
+                            TPTP.GeneralTerm(Seq(TPTP.MetaFunctionData(introducedSkolemSymbols.keySet.head, Seq.empty)),None)
+                          } else {
+                            TPTP.GeneralTerm(Seq.empty,Some(introducedSkolemSymbols.keySet.toSeq.map(vari => (TPTP.GeneralTerm(Seq(TPTP.MetaFunctionData(vari, Seq.empty)),None)))))
+                          }
                         ))
                       ),
                       None
                     )
                   )
-                )
+                ) // Tuple end
               ),
               // Entry #3: [<parent>]
               TPTP.GeneralTerm(
@@ -349,7 +365,7 @@ final class SingleFormulaSkolemizer(skolemizationSymbol: String, skolemizeAll: B
       TFF.Typing(skolemSymbol, typeOfSkolemSymbol),
       None)
     typeDeclarationsOfIntroducedSkolemSymbols = typeDeclarationsOfIntroducedSkolemSymbols :+ typeDeclaration
-    introducedSkolemSymbols = introducedSkolemSymbols :+ skolemSymbol
+    introducedSkolemSymbols = introducedSkolemSymbols + (variableToSkolemize._1 -> skolemSymbol)
 
     val skolemTerm: TFF.Term = TFF.AtomicTerm(skolemSymbol, universalVars.map { case (name, _) => TFF.Variable(name) })
     replaceEveryVarOccurrenceWithTermTFF(formula, variableToSkolemize, skolemTerm)
@@ -539,7 +555,7 @@ final class SingleFormulaSkolemizer(skolemizationSymbol: String, skolemizeAll: B
       THF.Typing(skolemSymbol, typeOfSkolemSymbol),
       None)
     typeDeclarationsOfIntroducedSkolemSymbols = typeDeclarationsOfIntroducedSkolemSymbols :+ typeDeclaration
-    introducedSkolemSymbols = introducedSkolemSymbols :+ skolemSymbol
+    introducedSkolemSymbols = introducedSkolemSymbols + (variableToSkolemize._1 -> skolemSymbol)
 
     val skolemTerm: THF.Formula = THF.FunctionTerm(skolemSymbol, universalVars.map { case (name, _) => THF.Variable(name) })
     replaceEveryVarOccurrenceWithTermTHF(formula, variableToSkolemize, skolemTerm)
