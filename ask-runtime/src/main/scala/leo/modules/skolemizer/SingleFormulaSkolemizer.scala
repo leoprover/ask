@@ -386,8 +386,86 @@ final class SingleFormulaSkolemizer(skolemizationSymbol: String, skolemizeAll: B
   private def skolemizeTHFFormula(formula: TPTP.THF.Formula): TPTP.THF.Formula =
     skolemizeTHFFormula0(formula, polarity = true, univVars = Seq.empty)
 
-  private def skolemizeTHFFormula0(formula: TPTP.THF.Formula, polarity: Boolean, univVars: Seq[THF.TypedVariable]): TPTP.THF.Formula =
-    ???
+  private def skolemizeTHFFormula0(formula: TPTP.THF.Formula, polarity: Boolean, univVars: Seq[THF.TypedVariable]): TPTP.THF.Formula = {
+    formula match {
+      // Act cases
+      case THF.QuantifiedFormula(quantifier, variableList, body) if quantifier == TPTP.THF.? && polarity =>
+        skolemizeTHFFormula1(quantifier, variableList, body, polarity, univVars)
+      case THF.QuantifiedFormula(quantifier, variableList, body) if quantifier == TPTP.THF.! && !polarity =>
+        skolemizeTHFFormula1(quantifier, variableList, body, polarity, univVars)
+      // recursive cases with polarity switch
+      /* the remaining quantifier cases are ! with positive polarity and ? with negative polarity, both are Skolem dependency variable cases for the recursion */
+      case THF.QuantifiedFormula(quantifier, variableList, body) =>
+        THF.QuantifiedFormula(quantifier, variableList, skolemizeTHFFormula0(body, polarity, univVars ++ variableList))
+      case THF.FunctionTerm(f, args) =>
+        THF.FunctionTerm(f, args) // TODO
+      case THF.UnaryFormula(connective, body) => connective match {
+        case THF.~ => THF.UnaryFormula(connective, skolemizeTHFFormula0(body, !polarity, univVars))
+      }
+      case THF.BinaryFormula(connective, left, right) =>
+        connective match {
+          case THF.<=> =>
+            if (skolemizeAll || variableToSkolemize.isDefined)
+              THF.BinaryFormula(THF.&,
+                THF.BinaryFormula(THF.Impl, skolemizeTHFFormula0(left, !polarity, univVars), skolemizeTHFFormula0(right, polarity, univVars)),
+                THF.BinaryFormula(THF.<=, skolemizeTHFFormula0(left, polarity, univVars), skolemizeTHFFormula0(right, !polarity, univVars)),
+              )
+            else
+              THF.BinaryFormula(THF.&,
+                THF.BinaryFormula(THF.Impl, skolemizeTHFFormula0(left, !polarity, univVars), right),
+                THF.BinaryFormula(THF.<=, skolemizeTHFFormula0(left, polarity, univVars), right),
+              )
+          case THF.<~> =>
+            if (skolemizeAll || variableToSkolemize.isDefined)
+              THF.BinaryFormula(THF.~&,
+                THF.BinaryFormula(THF.Impl, skolemizeTHFFormula0(left, polarity, univVars), skolemizeTHFFormula0(right, !polarity, univVars)),
+                THF.BinaryFormula(THF.<=, skolemizeTHFFormula0(left, !polarity, univVars),skolemizeTHFFormula0(right, polarity, univVars))
+              )
+            else
+              THF.BinaryFormula(THF.~&,
+                THF.BinaryFormula(THF.Impl, skolemizeTHFFormula0(left, polarity, univVars), right),
+                THF.BinaryFormula(THF.<=, skolemizeTHFFormula0(left, !polarity, univVars), right)
+              )
+          case THF.Impl =>
+            if (skolemizeAll || variableToSkolemize.isDefined) THF.BinaryFormula(THF.Impl, skolemizeTHFFormula0(left, !polarity, univVars), skolemizeTHFFormula0(right, polarity, univVars))
+            else THF.BinaryFormula(THF.Impl, skolemizeTHFFormula0(left, !polarity, univVars), right)
+          case THF.<= =>
+            if (skolemizeAll || variableToSkolemize.isDefined) THF.BinaryFormula(THF.<=, skolemizeTHFFormula0(left, polarity, univVars), skolemizeTHFFormula0(right, !polarity, univVars))
+            else THF.BinaryFormula(THF.<=, skolemizeTHFFormula0(left, polarity, univVars), right)
+          case THF.~| |  THF.~& =>
+            if (skolemizeAll || variableToSkolemize.isDefined) THF.BinaryFormula(connective, skolemizeTHFFormula0(left, !polarity, univVars), skolemizeTHFFormula0(right, !polarity, univVars))
+            else THF.BinaryFormula(connective, skolemizeTHFFormula0(left, !polarity, univVars), right)
+          case THF.| | THF.& =>
+            if (skolemizeAll || variableToSkolemize.isDefined) THF.BinaryFormula(connective, skolemizeTHFFormula0(left, polarity, univVars), skolemizeTHFFormula0(right, polarity, univVars))
+            else THF.BinaryFormula(connective, skolemizeTHFFormula0(left, polarity, univVars), right)
+          /*
+          case THF.Eq => ???
+          case THF.Neq => ???
+          case THF.:= => ???
+          case leo.datastructures.TPTP.THF.== => ???
+          case THF.App => ???
+          case THF.FunTyConstructor => ???
+          case THF.ProductTyConstructor => ???
+          case THF.SumTyConstructor => ???
+           */
+          case _ => formula
+        }
+      case THF.ConditionalTerm(condition, thn, els) => formula // TODO
+      case THF.LetTerm(typing, binding, body) => formula // TODO
+      case THF.NonclassicalPolyaryFormula(connective, args) =>
+        THF.NonclassicalPolyaryFormula(connective, args.map(skolemizeTHFFormula0(_, polarity, univVars)))
+
+      /*
+      case THF.Variable(name) => ???
+      case THF.DefinedTH1ConstantTerm(constant) => ???
+      case THF.ConnectiveTerm(conn) => ???
+      case THF.DistinctObject(name) => ???
+      case THF.NumberTerm(value) => ???
+      case THF.Tuple(elements) => ???
+      */
+      case _ => formula
+    }
+  }
 
   private def skolemizeTHFFormula1(quantifier: THF.Quantifier, variableList: Seq[THF.TypedVariable],
                                    body: THF.Formula, polarity: Boolean, univVars: Seq[THF.TypedVariable]): THF.Formula = {
@@ -454,8 +532,8 @@ final class SingleFormulaSkolemizer(skolemizationSymbol: String, skolemizeAll: B
       case THF.Tuple(elements) => THF.Tuple(elements.map(replaceEveryVarOccurrenceWithTermTHF(_,variable, term)))
       case THF.NonclassicalPolyaryFormula(connective, args) =>
         THF.NonclassicalPolyaryFormula(connective, args.map(replaceEveryVarOccurrenceWithTermTHF(_, variable, term)))
-      case THF.ConditionalTerm(condition, thn, els) => ???
-      case THF.LetTerm(typing, binding, body) =>
+      case THF.ConditionalTerm(condition, thn, els) => formula // TODO
+      case THF.LetTerm(typing, binding, body) => // TODO
         THF.LetTerm(typing,
           binding.map { case (l, r) => (l, replaceEveryVarOccurrenceWithTermTHF(r, variable, term))},
           replaceEveryVarOccurrenceWithTermTHF(body, variable, term))
