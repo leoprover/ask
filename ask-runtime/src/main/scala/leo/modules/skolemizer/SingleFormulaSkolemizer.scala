@@ -1,7 +1,7 @@
 package leo.modules.skolemizer
 
 import leo.datastructures.TPTP
-import leo.datastructures.TPTP.{FOF, TFF}
+import leo.datastructures.TPTP.{FOF, TFF, THF}
 
 final class SingleFormulaSkolemizer(skolemizationSymbol: String, skolemizeAll: Boolean, variableToSkolemize: Option[String]) {
   //////////////////////////////////////////////////////////////////////////////
@@ -377,5 +377,93 @@ final class SingleFormulaSkolemizer(skolemizationSymbol: String, skolemizeAll: B
   //////////////////////////////////////////////////////////////////////////////
   // THF stuff
   //////////////////////////////////////////////////////////////////////////////
-  private def skolemizeTHF(statement: TPTP.THF.Statement): TPTP.THF.Statement = ???
+  private def skolemizeTHF(statement: TPTP.THF.Statement): TPTP.THF.Statement = {
+    statement match {
+      case THF.Logical(formula) => THF.Logical(skolemizeTHFFormula(formula))
+      case _ => statement
+    }
+  }
+  private def skolemizeTHFFormula(formula: TPTP.THF.Formula): TPTP.THF.Formula =
+    skolemizeTHFFormula0(formula, polarity = true, univVars = Seq.empty)
+
+  private def skolemizeTHFFormula0(formula: TPTP.THF.Formula, polarity: Boolean, univVars: Seq[THF.TypedVariable]): TPTP.THF.Formula =
+    ???
+
+  private def skolemizeTHFFormula1(quantifier: THF.Quantifier, variableList: Seq[THF.TypedVariable],
+                                   body: THF.Formula, polarity: Boolean, univVars: Seq[THF.TypedVariable]): THF.Formula = {
+    // if name check name (and recurse if no, and yes if yes), if no name do it and then return, otherwise
+    variableToSkolemize match {
+      case Some(variableName) =>
+        // just skolemize that one
+        if (variableList.exists(_._1 == variableName)) {
+          val idxOfVariable = variableList.indexWhere(_._1 == variableName)
+          val (before, after0) = variableList.splitAt(idxOfVariable)
+          val theVariable = after0.head
+          val after = after0.tail
+          val skolemized = skolemizeTHFFormula2(body, theVariable, univVars)
+          val rest = before ++ after
+          if (rest.nonEmpty)  THF.QuantifiedFormula(quantifier, before ++ after, skolemized)
+          else skolemized
+        } else /* recurse */ THF.QuantifiedFormula(quantifier, variableList, skolemizeTHFFormula0(body, polarity, univVars))
+      case None =>
+        if (skolemizeAll) {
+          val skolemized = variableList.foldLeft(body) { case (acc, variable) => skolemizeTHFFormula2(acc, variable, univVars) }
+          skolemizeTHFFormula0(skolemized, polarity, univVars)
+        } else {
+          // only first occurrence and then return
+          val theVariable = variableList.head
+          val after = variableList.tail
+          val skolemized = skolemizeTHFFormula2(body, theVariable, univVars)
+          if (after.nonEmpty) THF.QuantifiedFormula(quantifier, after, skolemized)
+          else skolemized
+        }
+    }
+  }
+  private def skolemizeTHFFormula2(formula: THF.Formula, variableToSkolemize: THF.TypedVariable, universalVars: Seq[THF.TypedVariable]): THF.Formula = {
+    val skolemSymbol: String = freshSkolemSymbol()
+    val goalTypeOfSkolemSymbol = variableToSkolemize._2
+    val typesOfDependencies = universalVars.map(_._2)
+    val typeOfSkolemSymbol: THF.Type = typesOfDependencies.foldRight(goalTypeOfSkolemSymbol){ case (ty, acc) =>
+      THF.BinaryFormula(THF.FunTyConstructor, ty, acc)
+    }
+    val typeDeclaration: TPTP.THFAnnotated = TPTP.THFAnnotated(
+      s"${skolemSymbol}_decl",
+      "type",
+      THF.Typing(skolemSymbol, typeOfSkolemSymbol),
+      None)
+    typeDeclarationsOfIntroducedSkolemSymbols = typeDeclarationsOfIntroducedSkolemSymbols :+ typeDeclaration
+
+    val skolemTerm: THF.Formula = THF.FunctionTerm(skolemSymbol, universalVars.map { case (name, _) => THF.Variable(name) })
+    replaceEveryVarOccurrenceWithTermTHF(formula, variableToSkolemize, skolemTerm)
+  }
+
+  private def replaceEveryVarOccurrenceWithTermTHF(formula: TPTP.THF.Formula, variable: THF.TypedVariable, term: TPTP.THF.Formula): THF.Formula = {
+    formula match {
+      case THF.FunctionTerm(f, args) => THF.FunctionTerm(f, args.map(replaceEveryVarOccurrenceWithTermTHF(_, variable, term)))
+      case THF.QuantifiedFormula(quantifier, variableList, body) =>
+        THF.QuantifiedFormula(quantifier, variableList, replaceEveryVarOccurrenceWithTermTHF(body, variable, term))
+      case THF.Variable(name) =>
+        if (name == variable._1) term
+        else formula
+      case THF.UnaryFormula(connective, body) =>
+        THF.UnaryFormula(connective, replaceEveryVarOccurrenceWithTermTHF(body, variable, term))
+      case THF.BinaryFormula(connective, left, right) =>
+        THF.BinaryFormula(connective,
+          replaceEveryVarOccurrenceWithTermTHF(left, variable, term),
+          replaceEveryVarOccurrenceWithTermTHF(right, variable, term))
+      case THF.Tuple(elements) => THF.Tuple(elements.map(replaceEveryVarOccurrenceWithTermTHF(_,variable, term)))
+      case THF.NonclassicalPolyaryFormula(connective, args) =>
+        THF.NonclassicalPolyaryFormula(connective, args.map(replaceEveryVarOccurrenceWithTermTHF(_, variable, term)))
+      case THF.ConditionalTerm(condition, thn, els) => ???
+      case THF.LetTerm(typing, binding, body) =>
+        THF.LetTerm(typing,
+          binding.map { case (l, r) => (l, replaceEveryVarOccurrenceWithTermTHF(r, variable, term))},
+          replaceEveryVarOccurrenceWithTermTHF(body, variable, term))
+      /*case THF.DefinedTH1ConstantTerm(constant) => ???
+      case THF.ConnectiveTerm(conn) => ???
+      case THF.DistinctObject(name) => ???
+      case THF.NumberTerm(value) => ???*/
+      case _ => formula
+    }
+  }
 }
