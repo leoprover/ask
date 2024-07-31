@@ -36,25 +36,26 @@ final class SingleFormulaSkolemizer(skolemizationSymbol: String, skolemizeAll: B
     def inferenceTerm: TPTP.GeneralTerm =
       TPTP.GeneralTerm(
         Seq(
-          TPTP.MetaFunctionData("inference",
+          TPTP.MetaFunctionData("introduced",
             Seq(
-              // Entry #1 skolemization
+              // Entry #1 assumption
               TPTP.GeneralTerm(
-                Seq(TPTP.MetaFunctionData("skolemization", Seq.empty)),
+                Seq(TPTP.MetaFunctionData("assumption", Seq.empty)),
                 None
               ),
-              // Entry #2 [status(esa),new_symbols(skolem, [<introduced symbol>]), skolemized(<var>)]
+              // Old: Entry #2 [status(esa),new_symbols(skolem, [<introduced symbol>]), skolemized(<var>)]
+              // Entry #2 new [new_symbols(skolem, [<introduced symbol>]), skolemized(<var>)]
               TPTP.GeneralTerm(
                 Seq.empty,
                 Some( // Tuple begin
                   Seq(
-                    // Entry 2.1: status
+                    /*// Entry 2.1: status
                     TPTP.GeneralTerm(
                       Seq(
                         TPTP.MetaFunctionData("status", Seq(TPTP.GeneralTerm(Seq(TPTP.MetaFunctionData("esa", Seq.empty)),None)))
                       ),
                       None
-                    ),
+                    ),*/
                     // Entry 2.2: new_symbols
                     TPTP.GeneralTerm(
                       Seq(
@@ -101,12 +102,12 @@ final class SingleFormulaSkolemizer(skolemizationSymbol: String, skolemizeAll: B
     def annotation: TPTP.Annotations = Some((inferenceTerm, None))
 
     formula match {
-      case TPTP.THFAnnotated(name, _, formula, _) =>
-        TPTP.THFAnnotated(s"${name}_skolemized", "plain", skolemizeTHF(formula), annotation)
-      case TPTP.TFFAnnotated(name, _, formula, _) =>
-        TPTP.TFFAnnotated(s"${name}_skolemized", "plain", skolemizeTFF(formula), annotation)
-      case TPTP.FOFAnnotated(name, _, formula, _) =>
-        TPTP.FOFAnnotated(s"${name}_skolemized", "plain", skolemizeFOF(formula), annotation)
+      case TPTP.THFAnnotated(name, role, formula, _) =>
+        TPTP.THFAnnotated(s"${name}_skolemized", role, skolemizeTHF(formula), annotation)
+      case TPTP.TFFAnnotated(name, role, formula, _) =>
+        TPTP.TFFAnnotated(s"${name}_skolemized", role, skolemizeTFF(formula), annotation)
+      case TPTP.FOFAnnotated(name, role, formula, _) =>
+        TPTP.FOFAnnotated(s"${name}_skolemized", role, skolemizeFOF(formula), annotation)
       case _ => formula
     }
   }
