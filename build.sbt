@@ -1,6 +1,6 @@
 lazy val commonSettings = Seq(
   organization := "org.leo",
-  version := "0.1.0-SNAPSHOT",
+  version := "0.1.0",
   scalaVersion := "2.13.14",
   scalacOptions ++= Seq(
       "-deprecation",
@@ -15,14 +15,14 @@ lazy val embedding = (project in file("."))
   .disablePlugins(sbtassembly.AssemblyPlugin)
   .settings(
     commonSettings,
-    name := "ASk",
+    name := "ask",
     description := "Alex' Skolemizer",
   ).aggregate(runtime, app)
 
 lazy val runtime = (project in file("ask-runtime"))
 	.settings(
 	  commonSettings,
-    name := "ASk-runtime",
+    name := "ask-runtime",
     assembly / assemblyOption ~= {
       _.withIncludeScala(false)
     },
@@ -35,9 +35,9 @@ lazy val app = (project in file("ask-app"))
   .enablePlugins(NativeImagePlugin)
 	.settings(
 	  commonSettings,
-    name := "ASk-app",
-    Compile/mainClass := Some("leo.modules.ASk"),
-    assembly/mainClass := Some("leo.modules.ASk"),
+    name := "ask-app",
+    Compile/mainClass := Some("leo.modules.ASkApp"),
+    assembly/mainClass := Some("leo.modules.ASkApp"),
     assembly/assemblyJarName := s"${name.value}-${version.value}.jar",
     assembly/test := {},
     unmanagedBase := baseDirectory.value / ".." / "lib"

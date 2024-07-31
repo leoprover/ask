@@ -11,7 +11,7 @@ import scala.collection.mutable
 
 object ASkApp {
   final val name: String = "ask"
-  final val version: String = "0.1.0-SNAPSHOT"
+  final val version: String = "0.1.0"
 //  private[this] val standardSkolemSymbolName: String = "aSk"
   // Parameters of the invocation
   private[this] var param_inputFileName = ""
@@ -48,11 +48,13 @@ object ASkApp {
         param_skolemSymbolName match {
           case Some(value) =>
             if (value.endsWith("_NN") && value.length > 3 && skolemizeAll) {
-              skolemSymbolName = value.dropRight(3)
+              skolemSymbolName = value.reverse.replaceFirst("NN_", "d20%_").reverse
             } else {
+              skolemSymbolName = value
               skolemizeAll = false
             }
-          case None => // Nothing to do
+          case None =>
+          if (skolemizeAll) skolemSymbolName = skolemSymbolName + "_%02d"
         }
 
         // Allocate output file

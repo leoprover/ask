@@ -10,9 +10,11 @@ final class SingleFormulaSkolemizer(skolemizationSymbol: String, skolemizeAll: B
 
   private[this] var nextSkolemIndex: Int = 0
   private def freshSkolemSymbol(): String = {
-    val nextSkolemIndexFormatted: String = "%02d".format(nextSkolemIndex)
+//    val nextSkolemIndexFormatted: String = "%02d".format(nextSkolemIndex)
+//    nextSkolemIndex = nextSkolemIndex + 1
+    val result = s"${skolemizationSymbol}".format(nextSkolemIndex)
     nextSkolemIndex = nextSkolemIndex + 1
-    s"${skolemizationSymbol}_$nextSkolemIndexFormatted"
+    result
   }
 
   /* Map: Variable -> skolem symbol */
