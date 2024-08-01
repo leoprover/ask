@@ -12,7 +12,7 @@ final class SingleFormulaSkolemizer(skolemizationSymbol: String, skolemizeAll: B
   private def freshSkolemSymbol(): String = {
 //    val nextSkolemIndexFormatted: String = "%02d".format(nextSkolemIndex)
 //    nextSkolemIndex = nextSkolemIndex + 1
-    val result = s"${skolemizationSymbol}".format(nextSkolemIndex)
+    val result = s"$skolemizationSymbol".format(nextSkolemIndex)
     nextSkolemIndex = nextSkolemIndex + 1
     result
   }
@@ -29,6 +29,7 @@ final class SingleFormulaSkolemizer(skolemizationSymbol: String, skolemizeAll: B
       val skolemized = apply(nonTypeFormulas.head)
       val extraTypeDeclarations: Seq[TPTP.AnnotatedFormula] = typeDeclarationsOfIntroducedSkolemSymbols
       val extraDefinitions: Seq[TPTP.AnnotatedFormula] = Seq() // TODO
+      if (introducedSkolemSymbols.isEmpty && variableToSkolemize.isDefined) throw new ExistantialVariableDoesNotExistException()
       TPTP.Problem(problem.includes, extraTypeDeclarations ++ extraDefinitions :+ skolemized, problem.formulaComments)
     }
   }
@@ -77,7 +78,7 @@ final class SingleFormulaSkolemizer(skolemizationSymbol: String, skolemizeAll: B
                           if (introducedSkolemSymbols.keySet.size == 1) {
                             TPTP.GeneralTerm(Seq(TPTP.MetaFunctionData(introducedSkolemSymbols.keySet.head, Seq.empty)),None)
                           } else {
-                            TPTP.GeneralTerm(Seq.empty,Some(introducedSkolemSymbols.keySet.toSeq.map(vari => (TPTP.GeneralTerm(Seq(TPTP.MetaFunctionData(vari, Seq.empty)),None)))))
+                            TPTP.GeneralTerm(Seq.empty,Some(introducedSkolemSymbols.keySet.toSeq.map(vari => TPTP.GeneralTerm(Seq(TPTP.MetaFunctionData(vari, Seq.empty)),None))))
                           }
                         ))
                       ),

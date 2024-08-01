@@ -2,8 +2,7 @@ package leo.modules
 
 import leo.datastructures.TPTP.Problem
 import leo.modules.input.TPTPParser
-import leo.modules.skolemizer.SingleFormulaSkolemizer
-import leo.modules.skolemizer.NotOnlyOneFormulaException
+import leo.modules.skolemizer.{ExistantialVariableDoesNotExistException, NotOnlyOneFormulaException, SingleFormulaSkolemizer}
 
 import scala.io.Source
 import java.io.{File, FileNotFoundException, PrintWriter}
@@ -11,8 +10,8 @@ import scala.collection.mutable
 
 object ASkApp {
   final val name: String = "ask"
-  final val version: String = "0.1.0"
-//  private[this] val standardSkolemSymbolName: String = "aSk"
+  final val version: String = "0.1.1"
+  
   // Parameters of the invocation
   private[this] var param_inputFileName = ""
   private[this] var param_outputFileName: Option[String] = None
@@ -34,7 +33,7 @@ object ASkApp {
     else {
       var infile: Option[Source] = None
       var outfile: Option[PrintWriter] = None
-      var error: Option[String] = None
+      var error: Option[(String,String)] = None // TPTP status, error message
 
       try {
         parseArgs(args.toSeq)
@@ -72,31 +71,33 @@ object ASkApp {
         // Error handling
       } catch {
         case e: IllegalArgumentException =>
-          error = if (e.getMessage == null) Some(e.toString) else Some(e.getMessage)
+          error = if (e.getMessage == null) Some(("UsageError", e.toString)) else Some(("UsageError", e.getMessage))
           if (!tstpOutput) usage()
         case e: FileNotFoundException =>
-          error = Some(s"File cannot be found or is not readable/writable: ${e.getMessage}")
+          error = Some(("InputError", s"File cannot be found or is not readable/writable: ${e.getMessage}"))
         case _: NotOnlyOneFormulaException =>
-          error = Some(s"The input file contains more than one annotated formula. Aborting.")
+          error = Some(("InputError", s"The input file contains more than one annotated formula. Aborting."))
+        case _: ExistantialVariableDoesNotExistException =>
+          error = Some(("UsageError", s"Existential variable does not exist."))
         case e: TPTPParser.TPTPParseException =>
-          error = Some(s"Input file could not be parsed, parse error at ${e.line}:${e.offset}: ${e.getMessage}")
+          error = Some(("InputError", s"Input file could not be parsed, parse error at ${e.line}:${e.offset}: ${e.getMessage}"))
         case e: Throwable =>
-          error = Some(s"Unexpected error: ${e.getMessage}. This is considered an implementation error, please report this!")
+          error = Some(("Error", s"Unexpected error: ${e.getMessage}. This is considered an implementation error, please report this!"))
       } finally {
         if (error.nonEmpty) {
           if (tstpOutput) {
             if (outfile.isDefined) {
-              outfile.get.println(s"% SZS status Error for $param_inputFileName : ${error.get}\n")
+              outfile.get.println(s"% SZS status ${error.get._1} for $param_inputFileName : ${error.get._2}\n")
               outfile.get.flush()
-            } else println(s"% SZS status Error for $param_inputFileName : ${error.get}\n")
+            } else println(s"% SZS status ${error.get._1} for $param_inputFileName : ${error.get._2}\n")
           } else {
             if (outfile.isDefined) {
-              outfile.get.println(s"Error: ${error.get}")
+              outfile.get.println(s"Error: ${error.get._2}")
               outfile.get.flush()
               if (param_outputFileName.isDefined) {
-                if (param_outputFileName.get != "-") System.err.println(s"Error: ${error.get}")
+                if (param_outputFileName.get != "-") System.err.println(s"Error: ${error.get._2}")
               }
-            } else println(s"Error: ${error.get}")
+            } else println(s"Error: ${error.get._2}")
           }
         }
         try { infile.foreach(_.close())  } catch { case _:Throwable => () }
