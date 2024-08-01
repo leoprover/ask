@@ -40,6 +40,9 @@ lazy val app = (project in file("ask-app"))
     assembly/mainClass := Some("leo.modules.ASkApp"),
     assembly/assemblyJarName := s"${name.value}-${version.value}.jar",
     assembly/test := {},
-    unmanagedBase := baseDirectory.value / ".." / "lib"
+    unmanagedBase := baseDirectory.value / ".." / "lib",
+    nativeImageOptions += s"-H:ReflectionConfigurationFiles=${baseDirectory.value / ".." / "contrib" / "native-image-configs" / "reflect-config.json"}",
+    nativeImageOptions += s"-H:ConfigurationFileDirectories=${baseDirectory.value / ".."  / "contrib" / "native-image-configs" }",
+    nativeImageOptions +="-H:+JNI"
 	).dependsOn(runtime)
 
