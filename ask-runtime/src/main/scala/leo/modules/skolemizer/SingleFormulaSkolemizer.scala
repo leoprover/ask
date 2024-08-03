@@ -362,7 +362,8 @@ final class SingleFormulaSkolemizer(skolemizationSymbol: String, skolemizeAll: B
         case None => TFF.AtomicType("$i", Seq.empty)
       }
     }
-    val typeOfSkolemSymbol: TFF.Type = TFF.MappingType(typesOfDependencies, goalTypeOfSkolemSymbol)
+    val typeOfSkolemSymbol: TFF.Type =
+      if (typesOfDependencies.isEmpty) goalTypeOfSkolemSymbol else TFF.MappingType(typesOfDependencies, goalTypeOfSkolemSymbol)
     val typeDeclaration: TPTP.TFFAnnotated = TPTP.TFFAnnotated(
       s"${skolemSymbol}_decl",
       "type",
