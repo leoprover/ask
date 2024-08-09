@@ -3,15 +3,16 @@ package leo.modules.skolemizer
 import leo.datastructures.TPTP
 import leo.datastructures.TPTP.{FOF, TFF, THF}
 
-final class SingleFormulaSkolemizer(skolemizationSymbol: String, skolemizeAll: Boolean, variableToSkolemize: Option[String]) {
+final class SingleFormulaSkolemizer(skolemizationSymbol: String,
+                                    skolemizeAll: Boolean,
+                                    variableToSkolemize: Option[String],
+                                    choiceTerms: Boolean) {
   //////////////////////////////////////////////////////////////////////////////
   // general stuff
   //////////////////////////////////////////////////////////////////////////////
 
   private[this] var nextSkolemIndex: Int = 0
   private def freshSkolemSymbol(): String = {
-//    val nextSkolemIndexFormatted: String = "%02d".format(nextSkolemIndex)
-//    nextSkolemIndex = nextSkolemIndex + 1
     val result = s"$skolemizationSymbol".format(nextSkolemIndex)
     nextSkolemIndex = nextSkolemIndex + 1
     result
@@ -21,6 +22,9 @@ final class SingleFormulaSkolemizer(skolemizationSymbol: String, skolemizeAll: B
   private[this] var introducedSkolemSymbols: Map[String,String] = Map.empty
   private[this] var typeDeclarationsOfIntroducedSkolemSymbols: Seq[TPTP.AnnotatedFormula] = Seq.empty
 
+  /* If Skolemizing only one variable: did the variable occur? */
+  private[this] var variableExists: Boolean = false
+
   def apply(problem: TPTP.Problem): TPTP.Problem = {
     val (_, nonTypeFormulas) = problem.formulas.partition(_.role == "type")
     if (nonTypeFormulas.size < 1) problem
@@ -29,7 +33,7 @@ final class SingleFormulaSkolemizer(skolemizationSymbol: String, skolemizeAll: B
       val skolemized = apply(nonTypeFormulas.head)
       val extraTypeDeclarations: Seq[TPTP.AnnotatedFormula] = typeDeclarationsOfIntroducedSkolemSymbols
       val extraDefinitions: Seq[TPTP.AnnotatedFormula] = Seq() // TODO
-      if (introducedSkolemSymbols.isEmpty && variableToSkolemize.isDefined) throw new ExistantialVariableDoesNotExistException()
+      if (variableToSkolemize.isDefined && !variableExists) throw new ExistantialVariableDoesNotExistException()
       TPTP.Problem(problem.includes, extraTypeDeclarations ++ extraDefinitions :+ skolemized, problem.formulaComments)
     }
   }
@@ -103,14 +107,15 @@ final class SingleFormulaSkolemizer(skolemizationSymbol: String, skolemizeAll: B
           )
         ), None)
     def annotation: TPTP.Annotations = Some((inferenceTerm, None))
+    val suffix = "_ASked"
 
     formula match {
       case TPTP.THFAnnotated(name, role, formula, _) =>
-        TPTP.THFAnnotated(s"${name}_skolemized", role, skolemizeTHF(formula), annotation)
+        TPTP.THFAnnotated(s"$name$suffix", role, skolemizeTHF(formula), annotation)
       case TPTP.TFFAnnotated(name, role, formula, _) =>
-        TPTP.TFFAnnotated(s"${name}_skolemized", role, skolemizeTFF(formula), annotation)
+        TPTP.TFFAnnotated(s"$name$suffix", role, skolemizeTFF(formula), annotation)
       case TPTP.FOFAnnotated(name, role, formula, _) =>
-        TPTP.FOFAnnotated(s"${name}_skolemized", role, skolemizeFOF(formula), annotation)
+        TPTP.FOFAnnotated(s"$name$suffix", role, skolemizeFOF(formula), annotation)
       case _ => formula
     }
   }
@@ -187,6 +192,7 @@ final class SingleFormulaSkolemizer(skolemizationSymbol: String, skolemizeAll: B
       case Some(variableName) =>
         // just skolemize that one
         if (variableList.contains(variableName)) {
+          variableExists = true
           val idxOfVariable = variableList.indexOf(variableName)
           val (before, after0) = variableList.splitAt(idxOfVariable)
           val theVariable = after0.head
@@ -327,6 +333,7 @@ final class SingleFormulaSkolemizer(skolemizationSymbol: String, skolemizeAll: B
       case Some(variableName) =>
         // just skolemize that one
         if (variableList.exists(_._1 == variableName)) {
+          variableExists = true
           val idxOfVariable = variableList.indexWhere(_._1 == variableName)
           val (before, after0) = variableList.splitAt(idxOfVariable)
           val theVariable = after0.head
@@ -524,6 +531,7 @@ final class SingleFormulaSkolemizer(skolemizationSymbol: String, skolemizeAll: B
       case Some(variableName) =>
         // just skolemize that one
         if (variableList.exists(_._1 == variableName)) {
+          variableExists = true
           val idxOfVariable = variableList.indexWhere(_._1 == variableName)
           val (before, after0) = variableList.splitAt(idxOfVariable)
           val theVariable = after0.head
