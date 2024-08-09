@@ -10,13 +10,14 @@ import scala.collection.mutable
 
 object ASkApp {
   final val name: String = "ask"
-  final val version: String = "0.1.2"
+  final val version: String = "0.1.3"
   
   // Parameters of the invocation
   private[this] var param_inputFileName = ""
   private[this] var param_outputFileName: Option[String] = None
   private[this] var param_variableToSkolemize: Option[String] = None
   private[this] var param_skolemSymbolName: Option[String] = None
+  private[this] var param_choiceTerm: Boolean = false
   // Internal state stuff
   private[this] var skolemizeAll: Boolean = true
   private[this] var skolemSymbolName: String = "aSk" // Default name
@@ -63,7 +64,7 @@ object ASkApp {
 
         // Parse and select embedding
         val parsedInput = TPTPParser.problem(infile.get)
-        val skolemized = new SingleFormulaSkolemizer(skolemSymbolName, skolemizeAll, param_variableToSkolemize).apply(parsedInput)
+        val skolemized = new SingleFormulaSkolemizer(skolemSymbolName, skolemizeAll, param_variableToSkolemize, param_choiceTerm).apply(parsedInput)
         val result = generateResult(skolemized)
         // Write result
         outfile.get.print(result)
@@ -151,6 +152,8 @@ object ASkApp {
         | some fixed symbol suffixed with _00.
         | If both -s and -v are provided, Skolemize the <variable to Skolemize> using
         | the symbol <Skolem symbol to use>.
+        | If -e is specified, also output the equality between the Skolem term and
+        |   an epsilon term.
         |
         | Options:
         |  -v <variable to Skolemize>
@@ -159,6 +162,8 @@ object ASkApp {
         |  -s <Skolem symbol to use>
         |     The Skolem symbol base name to use for the Skolemization symbols.
         |     Defaults to "aSk" if omitted.
+        |
+        |  -e Output a choice term for the Skolem term.
         |
         |  --no-tstp
         |     Disable TSTP-compatible output: The output in <output file> (or stdout) will
@@ -183,6 +188,9 @@ object ASkApp {
         case Seq("-s", skolemName, rest@_*) =>
           args0 = rest
           param_skolemSymbolName = Some(skolemName)
+        case Seq("-e", rest@_*) =>
+          args0 = rest
+          param_choiceTerm = true
         case Seq("--no-tstp", rest@_*) =>
           args0 = rest
           tstpOutput = false
