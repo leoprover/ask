@@ -218,6 +218,7 @@ final class SingleFormulaSkolemizer(skolemizationSymbol: String,
   private def skolemizeFOFFormula2(formula: FOF.Formula, variableToSkolemize: String, universalVars: Seq[String]): FOF.Formula = {
     val skolemSymbol: String = freshSkolemSymbol()
     val skolemTerm: FOF.Term = FOF.AtomicTerm(skolemSymbol, universalVars.map(FOF.Variable))
+    introducedSkolemSymbols = introducedSkolemSymbols + (variableToSkolemize -> skolemSymbol)
     replaceEveryVarOccurrenceWithTermFOF(formula, FOF.Variable(variableToSkolemize), skolemTerm)
   }
   private def replaceEveryVarOccurrenceWithTermFOF(formula: TPTP.FOF.Formula, variable: TPTP.FOF.Variable, term: TPTP.FOF.Term): FOF.Formula = {
