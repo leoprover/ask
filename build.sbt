@@ -7,8 +7,8 @@ lazy val commonSettings = Seq(
       "-feature",
     ),
   licenses += "MIT" -> url("https://opensource.org/license/MIT"),
-
-  libraryDependencies += "io.github.leoprover" %% "scala-tptp-parser" % "1.7.1"
+  resolvers ++= Resolver.sonatypeOssRepos("snapshots"),
+  libraryDependencies += "io.github.leoprover" %% "scala-tptp-parser" % "1.7.1+3-49425aa8-SNAPSHOT"
 )
 
 lazy val embedding = (project in file("."))
