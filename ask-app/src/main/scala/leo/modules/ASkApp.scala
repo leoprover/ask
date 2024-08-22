@@ -10,7 +10,7 @@ import scala.collection.mutable
 
 object ASkApp {
   final val name: String = "ask"
-  final val version: String = "0.2.0"
+  final val version: String = "0.2.1"
   
   // Parameters of the invocation
   private[this] var param_inputFileName = ""

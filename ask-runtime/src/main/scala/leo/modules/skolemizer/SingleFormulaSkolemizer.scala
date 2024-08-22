@@ -20,6 +20,7 @@ final class SingleFormulaSkolemizer(skolemizationSymbol: String,
 
   /* Map: Variable -> skolem symbol */
   private[this] var introducedSkolemSymbols: Map[String,String] = Map.empty
+  private[this] var introducedSkolemTerms: Map[String,String] = Map.empty
   private[this] var typeDeclarationsOfIntroducedSkolemSymbols: Seq[TPTP.AnnotatedFormula] = Seq.empty
   private[this] var epsilonTermAxioms: Seq[TPTP.AnnotatedFormula] = Seq.empty
 
@@ -154,6 +155,7 @@ final class SingleFormulaSkolemizer(skolemizationSymbol: String,
     val skolemTermAsTFF = leo.modules.tptputils.SyntaxTransform.fofTermToTFF(skolemTerm)
     val formulaAsTFF = leo.modules.tptputils.SyntaxTransform.fofLogicFormulaToTFF(formula)
     introducedSkolemSymbols = introducedSkolemSymbols + (variableToSkolemize -> skolemSymbol)
+    introducedSkolemTerms = introducedSkolemTerms + (variableToSkolemize -> skolemTermAsTFF.pretty)
     if (choiceTerms) epsilonTermAxioms = epsilonTermAxioms :+ generateEpsilonTermTFF(name,
       skolemSymbol,
       skolemTermAsTFF,
@@ -320,8 +322,10 @@ final class SingleFormulaSkolemizer(skolemizationSymbol: String,
       TFF.Typing(skolemSymbol, typeOfSkolemSymbol),
       None)
     typeDeclarationsOfIntroducedSkolemSymbols = typeDeclarationsOfIntroducedSkolemSymbols :+ typeDeclaration
-    introducedSkolemSymbols = introducedSkolemSymbols + (variableToSkolemize._1 -> skolemSymbol)
     val skolemTerm: TFF.Term = TFF.AtomicTerm(skolemSymbol, universalVars.map { case (name, _) => TFF.Variable(name) })
+
+    introducedSkolemSymbols = introducedSkolemSymbols + (variableToSkolemize._1 -> skolemSymbol)
+    introducedSkolemTerms = introducedSkolemTerms + (variableToSkolemize._1 -> skolemTerm.pretty)
     if (choiceTerms) epsilonTermAxioms = epsilonTermAxioms :+ generateEpsilonTermTFF(name, skolemSymbol, skolemTerm,variableToSkolemize, universalVars, formula)
 
     replaceEveryVarOccurrenceWithTermTFF(formula, variableToSkolemize, skolemTerm)
@@ -334,7 +338,7 @@ final class SingleFormulaSkolemizer(skolemizationSymbol: String,
         epsilonFormula0
       else
         TFF.QuantifiedFormula(TFF.!, universalVars, epsilonFormula0)
-    val annotations: TPTP.Annotations = generateEpsilonAnnotation(skolemSymbol, variableToSkolemize._1, name)
+    val annotations: TPTP.Annotations = generateEpsilonAnnotation(skolemSymbol, name)
     TPTP.TFFAnnotated(leo.datastructures.TPTP.escapeAtomicWord(s"${skolemSymbol}_defn"), "definition", TFF.Logical(epsilonFormula), annotations)
   }
 
@@ -462,8 +466,8 @@ final class SingleFormulaSkolemizer(skolemizationSymbol: String,
            */
           case _ => formula
         }
-      case THF.ConditionalTerm(condition, thn, els) => formula // TODO
-      case THF.LetTerm(typing, binding, body) => formula // TODO
+      case THF.ConditionalTerm(_, _, _) => formula // TODO
+      case THF.LetTerm(_, _, _) => formula // TODO
       case THF.NonclassicalPolyaryFormula(connective, args) =>
         THF.NonclassicalPolyaryFormula(connective, args.map(skolemizeTHFFormula0(name, _, polarity, univVars)))
 
@@ -523,9 +527,11 @@ final class SingleFormulaSkolemizer(skolemizationSymbol: String,
       THF.Typing(skolemSymbol, typeOfSkolemSymbol),
       None)
     typeDeclarationsOfIntroducedSkolemSymbols = typeDeclarationsOfIntroducedSkolemSymbols :+ typeDeclaration
-    introducedSkolemSymbols = introducedSkolemSymbols + (variableToSkolemize._1 -> skolemSymbol)
 
     val skolemTerm: THF.Formula = THF.FunctionTerm(skolemSymbol, universalVars.map { case (name, _) => THF.Variable(name) })
+
+    introducedSkolemSymbols = introducedSkolemSymbols + (variableToSkolemize._1 -> skolemSymbol)
+    introducedSkolemTerms = introducedSkolemTerms + (variableToSkolemize._1 -> skolemTerm.pretty)
     if (choiceTerms) epsilonTermAxioms = epsilonTermAxioms :+ generateEpsilonTermTHF(name, skolemSymbol, skolemTerm,variableToSkolemize, universalVars, formula)
     replaceEveryVarOccurrenceWithTermTHF(formula, variableToSkolemize, skolemTerm)
   }
@@ -538,7 +544,7 @@ final class SingleFormulaSkolemizer(skolemizationSymbol: String,
         epsilonFormula0
       else
         THF.QuantifiedFormula(THF.!, universalVars, epsilonFormula0)
-    val annotations: TPTP.Annotations = generateEpsilonAnnotation(skolemSymbol, variableToSkolemize._1, name)
+    val annotations: TPTP.Annotations = generateEpsilonAnnotation(skolemSymbol, name)
     TPTP.THFAnnotated(leo.datastructures.TPTP.escapeAtomicWord(s"${skolemSymbol}_defn"), "definition", THF.Logical(epsilonFormula), annotations)
   }
   private def replaceEveryVarOccurrenceWithTermTHF(formula: TPTP.THF.Formula, variable: THF.TypedVariable, term: TPTP.THF.Formula): THF.Formula = {
@@ -558,7 +564,7 @@ final class SingleFormulaSkolemizer(skolemizationSymbol: String,
       case THF.Tuple(elements) => THF.Tuple(elements.map(replaceEveryVarOccurrenceWithTermTHF(_,variable, term)))
       case THF.NonclassicalPolyaryFormula(connective, args) =>
         THF.NonclassicalPolyaryFormula(connective, args.map(replaceEveryVarOccurrenceWithTermTHF(_, variable, term)))
-      case THF.ConditionalTerm(condition, thn, els) => formula // TODO
+      case THF.ConditionalTerm(_, _, _) => formula // TODO
       case THF.LetTerm(typing, binding, body) => // TODO
         THF.LetTerm(typing,
           binding.map { case (l, r) => (l, replaceEveryVarOccurrenceWithTermTHF(r, variable, term))},
@@ -572,10 +578,8 @@ final class SingleFormulaSkolemizer(skolemizationSymbol: String,
   }
 
 
-  /* introduced(definition,
-         [new_symbols(skolem,[<skolem-symbols>]),skolemized(<variable>)],
-         [<parent>] */
-  private[this] def generateEpsilonAnnotation(introducedSymbol: String, skolemizedVariable: String, parent: String): TPTP.Annotations = {
+  /* introduced(definition,[new_symbols(skolem,[<skolem symbol>])],[<parent>]) */
+  private[this] def generateEpsilonAnnotation(introducedSymbol: String, parent: String): TPTP.Annotations = {
     // Oh boy ...
     def inferenceTerm: TPTP.GeneralTerm =
       TPTP.GeneralTerm(
@@ -587,26 +591,16 @@ final class SingleFormulaSkolemizer(skolemizationSymbol: String,
                 Seq(TPTP.MetaFunctionData("definition", Seq.empty)),
                 None
               ),
-              // Entry #2 [new_symbols(skolem, [<introduced symbol>]), skolemized(<var>)]
+              // Entry #2 [new_symbols(skolem, [<introduced symbol>])]
               TPTP.GeneralTerm(
                 Seq.empty,
                 Some( // Tuple begin
                   Seq(
-                    // Entry 2.1: new_symbols
                     TPTP.GeneralTerm(
                       Seq(
                         TPTP.MetaFunctionData("new_symbols", Seq(
                           TPTP.GeneralTerm(Seq(TPTP.MetaFunctionData("skolem", Seq.empty)),None),
                           TPTP.GeneralTerm(Seq.empty,Some(Seq(TPTP.GeneralTerm(Seq(TPTP.MetaFunctionData(introducedSymbol, Seq.empty)), None))))
-                        ))
-                      ),
-                      None
-                    ),
-                    // Entry 2.2: skolemized(...)
-                    TPTP.GeneralTerm(
-                      Seq(
-                        TPTP.MetaFunctionData("skolemized", Seq(
-                          TPTP.GeneralTerm(Seq(TPTP.MetaFunctionData(skolemizedVariable, Seq.empty)),None)
                         ))
                       ),
                       None
@@ -632,12 +626,32 @@ final class SingleFormulaSkolemizer(skolemizationSymbol: String,
     Some((inferenceTerm, None))
   }
 
+  /* if no choice terms:
+       introduced(assumption,[new_symbols(skolem,[<skolem symbol>]),bind(<variable>,<skolem term>)],[<parent>])
+     if choice terms:
+       introduced(assumption,[bind(<variable>,<skolem term>)],[<parent>])
+   */
   @inline private[this] def assumptionAnnotation(formula: TPTP.AnnotatedFormula): TPTP.Annotations = Some((inferenceTerm(formula), None))
+  @inline private[this] def inferenceTerm(formula: TPTP.AnnotatedFormula): TPTP.GeneralTerm = {
+    TPTP.GeneralTerm(
+      Seq(
+        TPTP.MetaFunctionData("introduced",
+          Seq(
+            // Entry #1 assumption
+            assumptionsTerm,
+            // Entry #2 [new_symbols(skolem,[<skolem symbol>]),bind(<variable>,<skolem term>)] possibly without the new_symbols
+            newSymbolsAndBind(withNewSymbolsAnnotation = !choiceTerms),
+            // Entry #3: [<parent>]
+            parentTerm(formula)
+          )
+        )
+      ), None)
+  }
   @inline private[this] def assumptionsTerm: TPTP.GeneralTerm = TPTP.GeneralTerm(
     Seq(TPTP.MetaFunctionData("assumption", Seq.empty)),
     None
   )
-  @inline private[this] def newSymbolsAndSkolemizedTerm(withNewSymbolsAnnotation: Boolean): TPTP.GeneralTerm = TPTP.GeneralTerm(
+  @inline private[this] def newSymbolsAndBind(withNewSymbolsAnnotation: Boolean): TPTP.GeneralTerm = TPTP.GeneralTerm(
     Seq.empty,
     Some( // Tuple begin
       if (withNewSymbolsAnnotation) {
@@ -657,21 +671,14 @@ final class SingleFormulaSkolemizer(skolemizationSymbol: String,
       } else {
         Seq.empty
       }
-       ++ Seq(
-        // Entry 2.2: skolemized(...)
-        TPTP.GeneralTerm(
-          Seq(
-            TPTP.MetaFunctionData("skolemized", Seq(
-              if (introducedSkolemSymbols.keySet.size == 1) {
-                TPTP.GeneralTerm(Seq(TPTP.MetaFunctionData(introducedSkolemSymbols.keySet.head, Seq.empty)),None)
-              } else {
-                TPTP.GeneralTerm(Seq.empty,Some(introducedSkolemSymbols.keySet.toSeq.map(vari => TPTP.GeneralTerm(Seq(TPTP.MetaFunctionData(vari, Seq.empty)),None))))
-              }
-            ))
-          ),
-          None
-        )
-      )
+       ++
+        // Entry 2.2: bind(...)
+          introducedSkolemTerms.map { case (vari,term) =>
+            TPTP.GeneralTerm(Seq(TPTP.MetaFunctionData("bind", Seq(
+              TPTP.GeneralTerm(Seq(TPTP.MetaFunctionData(vari, Seq.empty)),None),
+              TPTP.GeneralTerm(Seq(TPTP.MetaFunctionData(term, Seq.empty)),None)
+            ))), None)
+          }.toSeq
     ) // Tuple end
   )
   @inline private[this] def parentTerm(formula: TPTP.AnnotatedFormula): TPTP.GeneralTerm = TPTP.GeneralTerm(
@@ -685,19 +692,4 @@ final class SingleFormulaSkolemizer(skolemizationSymbol: String,
       )
     )
   )
-  private[this] def inferenceTerm(formula: TPTP.AnnotatedFormula): TPTP.GeneralTerm = {
-    TPTP.GeneralTerm(
-      Seq(
-        TPTP.MetaFunctionData("introduced",
-          Seq(
-            // Entry #1 assumption
-            assumptionsTerm,
-            // Entry #2 [new_symbols(skolem, [<introduced symbol>]), skolemized(<var>)]
-            newSymbolsAndSkolemizedTerm(withNewSymbolsAnnotation = !choiceTerms),
-            // Entry #3: [<parent>]
-            parentTerm(formula)
-          )
-        )
-      ), None)
-  }
 }
