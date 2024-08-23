@@ -25,6 +25,9 @@ usage: ask [OPTIONS] <file with one formula> [<output file>]
  If both -s and -v are provided, Skolemize the <variable to Skolemize> using
  the symbol <Skolem symbol to use>.
 
+ If -e is specified, also output the equality between the Skolem term and
+   an epsilon term.
+
 Options:
   -v <variable to Skolemize>
      The existential variable to Skolemize.
@@ -32,6 +35,8 @@ Options:
   -s <Skolem symbol to use>
      The Skolem symbol base name to use for the Skolemization symbols.
      Defaults to "aSk" if omitted.
+     
+  -e Output a choice term for the Skolem term.
 
   --no-tstp
      Disable TSTP-compatible output: The output in <output file> (or stdout) will
