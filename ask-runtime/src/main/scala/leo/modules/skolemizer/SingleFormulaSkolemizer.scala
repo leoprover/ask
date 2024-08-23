@@ -654,7 +654,7 @@ final class SingleFormulaSkolemizer(skolemizationSymbol: String,
   @inline private[this] def newSymbolsAndBind(withNewSymbolsAnnotation: Boolean): TPTP.GeneralTerm = TPTP.GeneralTerm(
     Seq.empty,
     Some( // Tuple begin
-      if (withNewSymbolsAnnotation) {
+      (if (withNewSymbolsAnnotation) {
         Seq(
           // Entry 2.1: new_symbols
           TPTP.GeneralTerm(
@@ -670,15 +670,14 @@ final class SingleFormulaSkolemizer(skolemizationSymbol: String,
           ))
       } else {
         Seq.empty
-      }
-       ++
+      }) ++
         // Entry 2.2: bind(...)
-          introducedSkolemTerms.map { case (vari,term) =>
-            TPTP.GeneralTerm(Seq(TPTP.MetaFunctionData("bind", Seq(
-              TPTP.GeneralTerm(Seq(TPTP.MetaFunctionData(vari, Seq.empty)),None),
-              TPTP.GeneralTerm(Seq(TPTP.MetaFunctionData(term, Seq.empty)),None)
-            ))), None)
-          }.toSeq
+        introducedSkolemTerms.map { case (vari,term) =>
+          TPTP.GeneralTerm(Seq(TPTP.MetaFunctionData("bind", Seq(
+            TPTP.GeneralTerm(Seq(TPTP.MetaFunctionData(vari, Seq.empty)),None),
+            TPTP.GeneralTerm(Seq(TPTP.MetaFunctionData(term, Seq.empty)),None)
+          ))), None)
+        }.toSeq
     ) // Tuple end
   )
   @inline private[this] def parentTerm(formula: TPTP.AnnotatedFormula): TPTP.GeneralTerm = TPTP.GeneralTerm(
