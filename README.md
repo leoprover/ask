@@ -1,5 +1,7 @@
 # ASk: Alex' Skolemizer
 
+`ask` may be cited by [![DOI](https://zenodo.org/badge/835282456.svg)](https://doi.org/10.5281/zenodo.14181704)
+
 ```
 usage: ask [OPTIONS] <file with one formula> [<output file>]
 
