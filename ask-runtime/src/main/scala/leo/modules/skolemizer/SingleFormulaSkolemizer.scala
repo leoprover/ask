@@ -627,9 +627,9 @@ final class SingleFormulaSkolemizer(skolemizationSymbol: String,
   }
 
   /* if no choice terms:
-       introduced(assumption,[new_symbols(skolem,[<skolem symbol>]),bind(<variable>,<skolem term>)],[<parent>])
+       introduced(assumption,[new_symbols(skolem,[<skolem symbol>]),skolemized(<variable>),bind(<variable>,<skolem term>)],[<parent>])
      if choice terms:
-       introduced(assumption,[bind(<variable>,<skolem term>)],[<parent>])
+       introduced(assumption,[skolemization(<variable>),bind(<variable>,<skolem term>)],[<parent>])
    */
   @inline private[this] def assumptionAnnotation(formula: TPTP.AnnotatedFormula): TPTP.Annotations = Some((inferenceTerm(formula), None))
   @inline private[this] def inferenceTerm(formula: TPTP.AnnotatedFormula): TPTP.GeneralTerm = {
@@ -639,7 +639,7 @@ final class SingleFormulaSkolemizer(skolemizationSymbol: String,
           Seq(
             // Entry #1 assumption
             assumptionsTerm,
-            // Entry #2 [new_symbols(skolem,[<skolem symbol>]),bind(<variable>,<skolem term>)] possibly without the new_symbols
+            // Entry #2 [new_symbols(skolem,[<skolem symbol>]),skolemized(<variable>),bind(<variable>,<skolem term>)] possibly without the new_symbols
             newSymbolsAndBind(withNewSymbolsAnnotation = !choiceTerms),
             // Entry #3: [<parent>]
             parentTerm(formula)
@@ -671,8 +671,27 @@ final class SingleFormulaSkolemizer(skolemizationSymbol: String,
       } else {
         Seq.empty
       }) ++
-        // Entry 2.2: bind(...)
-        introducedSkolemTerms.map { case (vari,term) =>
+        // Entry 2.2
+        (if (introducedSkolemTerms.keys.size == 1) {
+          introducedSkolemTerms.map { case (vari,_) =>
+            TPTP.GeneralTerm(Seq(TPTP.MetaFunctionData("skolemized", Seq(
+              TPTP.GeneralTerm(Seq(TPTP.MetaFunctionData(vari, Seq.empty)),None),
+            ))), None)
+          }.toSeq
+        } else {
+          Seq(
+            TPTP.GeneralTerm(
+              Seq(TPTP.MetaFunctionData("skolemized", Seq(
+                TPTP.GeneralTerm(Seq.empty,Some(
+                  introducedSkolemTerms.keys.toSeq.map(sym => TPTP.GeneralTerm(Seq(TPTP.MetaFunctionData(sym, Seq.empty)), None))
+                ))
+              ))),
+              None
+            )
+          )
+        })
+        // Entry 2.3: bind(...)
+        ++ introducedSkolemTerms.map { case (vari,term) =>
           TPTP.GeneralTerm(Seq(TPTP.MetaFunctionData("bind", Seq(
             TPTP.GeneralTerm(Seq(TPTP.MetaFunctionData(vari, Seq.empty)),None),
             TPTP.GeneralTerm(Seq(TPTP.MetaFunctionData(term, Seq.empty)),None)
