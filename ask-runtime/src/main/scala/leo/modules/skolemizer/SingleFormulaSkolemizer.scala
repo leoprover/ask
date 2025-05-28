@@ -654,6 +654,10 @@ final class SingleFormulaSkolemizer(skolemizationSymbol: String,
   @inline private[this] def newSymbolsAndBind(withNewSymbolsAnnotation: Boolean): TPTP.GeneralTerm = TPTP.GeneralTerm(
     Seq.empty,
     Some( // Tuple begin
+      Seq(TPTP.GeneralTerm(Seq(TPTP.MetaFunctionData("status", Seq(
+        TPTP.GeneralTerm(Seq(TPTP.MetaFunctionData("esa", Seq.empty)),None),
+      ))), None))
+       ++
       (if (withNewSymbolsAnnotation) {
         Seq(
           // Entry 2.1: new_symbols
